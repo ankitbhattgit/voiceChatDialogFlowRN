@@ -12,6 +12,10 @@ target 'HatiPhysicianPortal' do
 
   pod 'react-native-voice', :path => '../node_modules/@react-native-community/voice'
 
+  pod 'RNCAsyncStorage', :path => '../node_modules/@react-native-community/async-storage'
+
+
+
   target 'HatiPhysicianPortalTests' do
     inherit! :complete
     # Pods for testing

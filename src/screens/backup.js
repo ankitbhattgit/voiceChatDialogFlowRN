@@ -139,7 +139,57 @@ class DialogFlowChatVoice extends Component {
 
   async handleGoogleResponse(result) {
     console.log('dialog flow result', JSON.stringify(result));
-    let receivedText = result.queryResult.fulfillmentText;
+    let receivedText = '';
+
+    if (
+      result.queryResult.queryText &&
+      result.queryResult.parameters.MRN &&
+      Number.isInteger(result.queryResult.parameters.MRN)
+    ) {
+      receivedText = 'Fetching patient details';
+      const mrn = 'PU' + result.queryResult.parameters.MRN;
+      try {
+        const response = await fetch(
+          `https://clinicareapiqa.sdglobaltech.com/alexa/getPatientInfo/mobile/${mrn}`,
+        );
+
+        if (!response.ok) {
+          receivedText = 'Please share a valid MRN.';
+        } else if (response.ok) {
+          const patientData = await response.json();
+          console.log('patient data', patientData);
+          receivedText = 'Here are the patient details:-\n';
+          receivedText = receivedText + `Patient name is ${patientData.name}\n`;
+          receivedText =
+            receivedText +
+            "The patient's recently recorded vitals are as follows:\n";
+          const vitalsArray = patientData.vitals;
+          if (vitalsArray.length > 0) {
+            vitalsArray.forEach((vitals) => {
+              if (vitals.vitalValue) {
+                let vitalName = vitals.vitalName.toLowerCase();
+                receivedText =
+                  receivedText +
+                  `Patient ${vitalName} is ${vitals.vitalValue}\n`;
+              }
+            });
+          }
+
+          console.log('receivedText', receivedText);
+
+          //  (
+          //   <View>
+          //     <Text>Following is the patient details</Text>
+          //   </View>
+          // );
+        }
+      } catch (err) {
+        console.error('patient details api error', err);
+        receivedText = 'Please share a valid MRN.';
+      }
+    } else {
+      receivedText = result.queryResult.fulfillmentText;
+    }
 
     this.sendBotResponse(receivedText);
   }

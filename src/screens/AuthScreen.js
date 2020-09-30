@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useState, useEffect} from 'react';
 import {
   Container,
   Header,
@@ -11,12 +11,68 @@ import {
   Text,
   Icon,
 } from 'native-base';
-import {View, StyleSheet, ImageBackground} from 'react-native';
+import {
+  View,
+  StyleSheet,
+  ImageBackground,
+  TextInput,
+  Alert,
+} from 'react-native';
+import {useDispatch} from 'react-redux';
+import * as authActions from './../store/actions/auth';
 
 const imgUrl = require('./../../assets/background.png');
 
 const AuthScreen = (props) => {
+  // console.log('authscreen');
+  const dispatch = useDispatch();
   let error = true;
+
+  const [state, setState] = useState({
+    email: 'yokesimt@ums.edu.my',
+    password: 'abcd@1234',
+  });
+  const [apiError, setApiError] = useState();
+
+  useEffect(() => {
+    if (apiError) {
+      Alert.alert('Error', apiError, [
+        {
+          text: 'Ok',
+        },
+      ]);
+    }
+  }, [apiError]);
+
+  const validateEmail = (email) => {
+    if (/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/.test(email)) {
+      this.setState({emailValidateColor: false, email: email});
+      console.log('valid');
+    } else {
+      this.setState({emailValidateColor: true, email: email});
+      console.log('invalid password');
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (state.email && state.password) {
+      let {email, password} = state;
+      setApiError(null);
+      try {
+        await dispatch(authActions.login(email, password));
+      } catch (err) {
+        setApiError(err.message);
+        // Alert.alert('Error!', err.message, [{text: 'Ok'}]);
+        console.log('error', err);
+      }
+    } else {
+      Alert.alert('Error', 'Please enter email and password', [
+        {
+          text: 'Ok',
+        },
+      ]);
+    }
+  };
 
   return (
     <Container style={styles.container}>
@@ -27,15 +83,40 @@ const AuthScreen = (props) => {
               floatingLabel
               //    error={error === true ? true : ''}
             >
-              <Label style={styles.label}>Username</Label>
-              <Input style={styles.label} />
+              <Label style={styles.label}>Email</Label>
+
+              <Input
+                style={styles.label}
+                value={state.email}
+                onChangeText={(email) => {
+                  setState((prevState) => ({
+                    ...prevState,
+                    email,
+                  }));
+                }}
+                returnKeyType="next"
+                required
+              />
             </Item>
             <Item floatingLabel>
               <Label style={styles.label}>Password</Label>
-              <Input style={styles.label} />
+              <Input
+                style={styles.label}
+                value={state.password}
+                secureTextEntry
+                onChangeText={(password) => {
+                  setState((prevState) => ({
+                    ...prevState,
+                    password,
+                  }));
+                }}
+                returnKeyType="done"
+                onSubmitEditing={handleSubmit}
+                required
+              />
             </Item>
             <View>
-              <Button rounded style={styles.button}>
+              <Button rounded style={styles.button} onPress={handleSubmit}>
                 <Text style={styles.buttonText}>Login</Text>
               </Button>
             </View>

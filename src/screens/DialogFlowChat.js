@@ -1,59 +1,102 @@
-import React, {Component} from 'react';
-import {View, StyleSheet, Platform} from 'react-native';
-import {GiftedChat} from 'react-native-gifted-chat';
-import {Dialogflow_V2} from 'react-native-dialogflow';
-import {dialogFlowConfig} from './../env';
-import {v4 as uuidv4} from 'uuid';
-import Tts from 'react-native-tts';
+import React, {Component, useState, useEffect, useCallback} from 'react';
+import {StyleSheet, Text, View, Image, TouchableHighlight} from 'react-native';
 import Icon from 'react-native-vector-icons/FontAwesome';
-import {Button} from 'react-native-elements';
 import Voice from '@react-native-community/voice';
+import {Button} from 'react-native-elements';
 
-const BOT_USER = {
-  _id: 2,
-  name: 'Ice Cream Bot',
-  avatar:
-    'https://previews.123rf.com/images/iulika1/iulika11909/iulika1190900021/129697389-medical-worker-health-professional-avatar-medical-staff-doctor-icon-isolated-on-white-background-vec.jpg',
-};
+const DialogFlowChat = (props) => {
+  const [voiceState, setVoiceState] = useState({
+    recognized: '',
+    pitch: '',
+    error: '',
+    end: '',
+    started: '',
+    results: [],
+    partialResults: [],
+  });
 
-var speak = 0;
+  const voiceChat = useCallback(() => {
+    console.log('callback');
+    Voice.onSpeechStart = onSpeechStart;
+    Voice.onSpeechRecognized = onSpeechRecognized;
+    Voice.onSpeechEnd = onSpeechEnd;
+    Voice.onSpeechError = onSpeechError;
+    Voice.onSpeechResults = onSpeechResults;
+    Voice.onSpeechPartialResults = onSpeechPartialResults;
+    Voice.onSpeechVolumeChanged = onSpeechVolumeChanged;
 
-export default class App extends Component {
-  constructor(props) {
-    super(props);
-    Voice.onSpeechStart = this.onSpeechStart;
-    Voice.onSpeechRecognized = this.onSpeechRecognized;
-    Voice.onSpeechEnd = this.onSpeechEnd;
-    Voice.onSpeechError = this.onSpeechError;
-    Voice.onSpeechResults = this.onSpeechResults;
-  }
+    Voice.destroy().then(Voice.removeAllListeners);
+  }, [onSpeechStart]);
 
-  state = {
-    messages: [
-      {
-        _id: 1,
-        text: 'Hi! I am the IceCreambot 🤖.\n\nHow may I help you today?',
-        createdAt: new Date(),
-        user: BOT_USER,
-      },
-    ],
-    speechText: '',
+  useEffect(() => {
+    console.log('inside');
+    voiceChat();
+  }, []);
+
+  const onSpeechStart = (e) => {
+    console.log('onSpeechStart: ', e);
+    setVoiceState({...voiceState, started: '√'});
   };
 
-  componentDidMount() {
-    Dialogflow_V2.setConfiguration(
-      dialogFlowConfig.client_email,
-      dialogFlowConfig.private_key,
-      Dialogflow_V2.LANG_ENGLISH_US,
-      dialogFlowConfig.project_id,
-    );
-  }
-
-  uuidGen = () => {
-    return uuidv4();
+  const onSpeechRecognized = (e) => {
+    console.log('onSpeechRecognized: ', e);
+    setVoiceState({
+      ...voiceState,
+      recognized: '√',
+    });
   };
 
-  micHandler = async () => {
+  const onSpeechEnd = (e) => {
+    console.log('onSpeechEnd: ', e);
+    setVoiceState({
+      ...voiceState,
+      end: '√',
+    });
+  };
+
+  const onSpeechError = (e) => {
+    console.log('onSpeechError: ', e);
+    setVoiceState({
+      ...voiceState,
+      error: JSON.stringify(e.error),
+    });
+  };
+
+  const onSpeechResults = (e) => {
+    console.log('onSpeechResults: ', e);
+    setVoiceState({
+      ...voiceState,
+      results: e.value,
+    });
+  };
+
+  const onSpeechPartialResults = (e) => {
+    console.log('onSpeechPartialResults: ', e);
+    setVoiceState({
+      ...voiceState,
+      partialResults: e.value,
+    });
+  };
+
+  const onSpeechVolumeChanged = (e) => {
+    console.log('onSpeechVolumeChanged: ', e);
+    setVoiceState({
+      ...voiceState,
+      pitch: e.value,
+    });
+  };
+
+  const _startRecognizing = async () => {
+    setVoiceState({
+      ...voiceState,
+      recognized: '',
+      pitch: '',
+      error: '',
+      started: '',
+      results: [],
+      partialResults: [],
+      end: '',
+    });
     try {
       await Voice.start('en-US');
     } catch (e) {
@@ -61,160 +104,120 @@ export default class App extends Component {
     }
   };
 
-  onSpeechResults = async (speech) => {
-    console.log('onSpeechResults event: ', speech.value[0]);
-
-    this.setState({
-      speechText: speech.value[0],
-    });
-
-    speak = 1;
-    let StateVariable = [
-      {
-        text: speech.value[0],
-        user: {
-          _id: 1,
-        },
-        createdAt: new Date(),
-        _id: Math.random(),
-      },
-    ];
-    this.onSend(StateVariable);
-  };
-
-  onSend(messages = []) {
-    console.log('onSend messages', messages);
-    this.setState((previousState) => ({
-      messages: GiftedChat.append(previousState.messages, messages),
-    }));
-
-    let message = messages[0].text;
-    Dialogflow_V2.requestQuery(
-      message,
-      (result) => this.handleGoogleResponse(result),
-      (error) => console.log(error),
-    );
-  }
-
-  async handleGoogleResponse(result) {
-    let receivedText = '';
-    let splitReceivedText = '';
-    var extractDate = '';
-    const dateRegex = /\d{4}\-\d{2}\-\d{2}?/gm;
-
-    receivedText = result.queryResult.fulfillmentMessages[0].text.text[0];
-    console.log('receivedText', receivedText);
-    splitReceivedText = receivedText;
-    extractDate = receivedText.match(dateRegex);
-
-    if (extractDate != null) {
-      var completeTimeValue = splitResponseForTime(receivedText);
-      var timeValue = getTimeValue(completeTimeValue);
-      function splitResponseForTime(str) {
-        return str.split('at')[1];
-      }
-
-      function getTimeValue(str) {
-        let time1 = str.split('T')[1];
-        let hour = time1.split(':')[0];
-        let min = time1.split(':')[1];
-        return hour + ':' + min;
-      }
-      splitReceivedText =
-        splitReceivedText + 'on ' + extractDate[0] + ' at ' + timeValue;
+  const _stopRecognizing = async () => {
+    try {
+      await Voice.stop();
+    } catch (e) {
+      console.error(e);
     }
-    this.sendBotResponse(splitReceivedText);
-  }
+  };
 
-  async sendBotResponse(text) {
-    let msg = {
-      _id: this.state.messages.length + 1,
-      text,
-      createdAt: new Date(),
-      user: BOT_USER,
-    };
-
-    this.setState((previousState) => ({
-      messages: GiftedChat.append(previousState.messages, msg),
-    }));
-
-    if (speak) {
-      try {
-        await Voice.stop();
-      } catch (e) {
-        console.error(e);
-      }
-      speak = 0;
-      Tts.getInitStatus().then(
-        () => {
-          Tts.setDucking(true);
-          if (Platform.OS === 'android') {
-            Tts.speak(text);
-          } else {
-            Tts.speak(text, {
-              iosVoiceId: 'com.apple.ttsbundle.siri_female_en-US_compact',
-            });
-          }
-        },
-        (err) => {
-          if (err.code === 'no_engine') {
-            Tts.requestInstallEngine();
-          }
-        },
-      );
+  const _cancelRecognizing = async () => {
+    try {
+      await Voice.cancel();
+    } catch (e) {
+      console.error(e);
     }
-  }
+  };
 
-  onSpeechStart = () => {
-    this.setState({
-      started: '√',
+  const _destroyRecognizer = async () => {
+    try {
+      await Voice.destroy();
+    } catch (e) {
+      console.error(e);
+    }
+    setVoiceState({
+      ...voiceState,
+      recognized: '',
+      pitch: '',
+      error: '',
+      started: '',
+      results: [],
+      partialResults: [],
+      end: '',
     });
   };
 
-  onSpeechRecognized = (speech) => {
-    console.log('onSpeechRecognized: ', speech);
-  };
+  return (
+    <View style={styles.container}>
+      <Text style={styles.welcome}>Welcome to React Native Voice!</Text>
+      <Text style={styles.instructions}>
+        Press the button and start speaking.
+      </Text>
+      <Text style={styles.stat}>{`Started: ${voiceState.started}`}</Text>
+      <Text style={styles.stat}>{`Recognized: ${voiceState.recognized}`}</Text>
+      <Text style={styles.stat}>{`Pitch: ${voiceState.pitch}`}</Text>
+      <Text style={styles.stat}>{`Error: ${voiceState.error}`}</Text>
+      <Text style={styles.stat}>Results</Text>
+      {voiceState.results.map((result, index) => {
+        return (
+          <Text key={`result-${index}`} style={styles.stat}>
+            {result}
+          </Text>
+        );
+      })}
+      <Text style={styles.stat}>Partial Results</Text>
+      {voiceState.partialResults.map((result, index) => {
+        return (
+          <Text key={`partial-result-${index}`} style={styles.stat}>
+            {result}
+          </Text>
+        );
+      })}
+      <Text style={styles.stat}>{`End: ${voiceState.end}`}</Text>
+      <Button
+        icon={<Icon name="microphone" size={24} color="white" />}
+        onPress={_startRecognizing}
+      />
 
-  onSpeechEnd = () => {
-    console.log('onSpeechEnd: ');
-    this.setState({
-      end: '√',
-    });
-  };
-
-  onSpeechError = (speech) => {
-    console.log('onSpeechError: ', speech);
-    this.setState({
-      error: JSON.stringify(speech.error),
-    });
-  };
-
-  componentWillUnmount() {
-    Voice.destroy().then(Voice.removeAllListeners);
-  }
-
-  render() {
-    return (
-      <View style={styles.screen}>
-        <GiftedChat
-          messages={this.state.messages}
-          onSend={(messages) => this.onSend(messages)}
-          user={{
-            _id: 1,
-          }}
-        />
-        <Button
-          icon={<Icon name="microphone" size={24} color="white" />}
-          onPress={this.micHandler}
-        />
-      </View>
-    );
-  }
-}
+      <TouchableHighlight onPress={_stopRecognizing}>
+        <Text style={styles.action}>Stop Recognizing</Text>
+      </TouchableHighlight>
+      <TouchableHighlight onPress={_cancelRecognizing}>
+        <Text style={styles.action}>Cancel</Text>
+      </TouchableHighlight>
+      <TouchableHighlight onPress={_destroyRecognizer}>
+        <Text style={styles.action}>Destroy</Text>
+      </TouchableHighlight>
+    </View>
+  );
+};
 
 const styles = StyleSheet.create({
-  screen: {
+  button: {
+    width: 50,
+    height: 50,
+  },
+  container: {
     flex: 1,
-    backgroundColor: '#fff',
+    flexDirection: 'column',
+    alignItems: 'center',
+    backgroundColor: '#F5FCFF',
+  },
+  welcome: {
+    fontSize: 20,
+    textAlign: 'center',
+    margin: 10,
+  },
+  action: {
+    width: '100%',
+    textAlign: 'center',
+    color: 'white',
+    paddingVertical: 8,
+    marginVertical: 5,
+    fontWeight: 'bold',
+  },
+  instructions: {
+    textAlign: 'center',
+    color: '#333333',
+    marginBottom: 5,
+  },
+  stat: {
+    textAlign: 'center',
+    color: '#B0171F',
+    marginBottom: 1,
+    marginTop: 30,
   },
 });
+
+export default DialogFlowChat;
